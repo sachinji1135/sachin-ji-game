@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    using UnityEngine;
+
+public class FightingCharacter : MonoBehaviour
+{
+    // Character States
+    public enum CharacterState { Idle, Walking, Punching, Blocking, Hit }
+    public CharacterState currentState = CharacterState.Idle;
+
+    // Movement and Attributes
+    public float moveSpeed = 5.0f;
+    public int health = 100;
+    
+    // References to components
+    public Animator characterAnimator; 
+    public GameObject punchHitbox;
+
+    void Update()
+    {
+        // 1. Only allow actions if not currently getting hit
+        if (currentState != CharacterState.Hit)
+        {
+            HandleMovement();
+            HandleAttacks();
+        }
+    }
+
+    void HandleMovement()
+    {
+        float moveInput = Input.GetAxis("Horizontal");
+
+        if (Mathf.Abs(moveInput) > 0.1f)
+        {
+            currentState = CharacterState.Walking;
+            // Move character left or right
+            transform.Translate(Vector3.forward * moveInput * moveSpeed * Time.deltaTime);
+            characterAnimator.SetBool("IsWalking", true);
+        }
+        else if (currentState == CharacterState.Walking)
+        {
+            currentState = CharacterState.Idle;
+            characterAnimator.SetBool("IsWalking", false);
+        }
+    }
+
+    void HandleAttacks()
+    {
+        // If Player presses the Punch button (e.g., 'J' key or gamepad button)
+        if (Input.GetButtonDown("Punch") && currentState != CharacterState.Punching)
+        {
+            StartCoroutine(PunchRoutine());
+        }
+    }
+
+    System.Collections.IEnumerator PunchRoutine()
+    {
+        currentState = CharacterState.Punching;
+        characterAnimator.SetTrigger("PunchTrigger");
+
+        // Turn on the fist hitbox halfway through the animation
+        yield return new WaitForSeconds(0.2f);
+        punchHitbox.SetActive(true);
+
+        // Turn off the hitbox after the punch ends
+        yield return new WaitForSeconds(0.1f);
+        punchHitbox.SetActive(false);
+
+        currentState = CharacterState.Idle;
+    }
+
+    // This runs when a hitbox touches this character
+    public void TakeDamage(int damageAmount)
+    {
+        health -= damageAmount;
+        currentState = CharacterState.Hit;
+        characterAnimator.SetTrigger("GetHitTrigger");
+
+        if (health <= 0)
+        {
+            characterAnimator.SetTrigger("DieTrigger");
+            Debug.Log("KO! Game Over.");
+        }
+        else
+        {
+            // Recover from the hit after half a second
+            Invoke("RecoverFromHit", 0.5f);
+        }
+    }
+
+    void RecoverFromHit()
+    {
+        currentState = CharacterState.Idle;
+    }
+}
+
+</body>
+</html>
